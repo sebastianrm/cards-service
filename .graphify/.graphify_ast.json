@@ -1,0 +1,66 @@
+{
+  "nodes": [
+    {
+      "id": "cardsserviceapplication",
+      "label": "CardsServiceApplication.java",
+      "file_type": "code",
+      "source_file": "src/main/java/com/yanki/cards/CardsServiceApplication.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "cardsserviceapplication_cardsserviceapplication",
+      "label": "CardsServiceApplication",
+      "file_type": "code",
+      "source_file": "src/main/java/com/yanki/cards/CardsServiceApplication.java",
+      "source_location": "L15"
+    },
+    {
+      "id": "cardsserviceapplication_cardsserviceapplication_main",
+      "label": ".main()",
+      "file_type": "code",
+      "source_file": "src/main/java/com/yanki/cards/CardsServiceApplication.java",
+      "source_location": "L23"
+    }
+  ],
+  "edges": [
+    {
+      "source": "cardsserviceapplication",
+      "target": "springapplication",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "src/main/java/com/yanki/cards/CardsServiceApplication.java",
+      "source_location": "L3",
+      "weight": 1
+    },
+    {
+      "source": "cardsserviceapplication",
+      "target": "springbootapplication",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "src/main/java/com/yanki/cards/CardsServiceApplication.java",
+      "source_location": "L4",
+      "weight": 1
+    },
+    {
+      "source": "cardsserviceapplication",
+      "target": "cardsserviceapplication_cardsserviceapplication",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/main/java/com/yanki/cards/CardsServiceApplication.java",
+      "source_location": "L15",
+      "weight": 1
+    },
+    {
+      "source": "cardsserviceapplication_cardsserviceapplication",
+      "target": "cardsserviceapplication_cardsserviceapplication_main",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "src/main/java/com/yanki/cards/CardsServiceApplication.java",
+      "source_location": "L23",
+      "weight": 1
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "hyperedges": []
+}
