@@ -282,9 +282,9 @@ Full catalog in [`README.md`](./README.md#8-cobertura-http-por-endpoint).
 - [`../AGENTS.md`](../AGENTS.md) — Root platform rules (traceability + hexagonal architecture golden rules).
 - [`../system-prompt-auditoria-hexagonal-yanki.md`](../system-prompt-auditoria-hexagonal-yanki.md) — **Mandatory** hexagonal architecture audit protocol.
 - [`../CONVENTIONS.md`](../CONVENTIONS.md) — Global technical contract for all microservices.
-- [`../CASOS_USO/CU-04-Gestion-Tarjetas.md`](../CASOS_USO/CU-04-Gestion-Tarjetas.md) — Card management use case.
-- [`../CASOS_USO/CU-07-Consumos-Tarjetas.md`](../CASOS_USO/CU-07-Consumos-Tarjetas.md) — Card consumption use case.
-- [`../CASOS_PRUEBA/RTM.md`](../CASOS_PRUEBA/RTM.md) — Traceability matrix (CU ↔ SEC ↔ CP).
+- [`../docs/CASOS_USO`](../docs/CASOS_USO/CU-04-Gestion-Tarjetas.md) — Card management use case.
+- [`../docs/CASOS_USO`](../docs/CASOS_USO/CU-07-Consumos-Tarjetas.md) — Card consumption use case.
+- [`../docs/CASOS_PRUEBA`](../docs/CASOS_PRUEBA/RTM.md) — Traceability matrix (CU ↔ SEC ↔ CP).
 - [`CASOS_PRUEBA/MOCKS.md`](CASOS_PRUEBA/MOCKS.md) — Mock dependencies for testing.
 - [`postman/README.md`](postman/README.md) — Postman collection documentation and usage guide.
 - [`postman/Yanki-Cards-Service-API.postman_collection.json`](postman/Yanki-Cards-Service-API.postman_collection.json) — Importable Postman collection.

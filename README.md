@@ -100,8 +100,8 @@ Este README consolida la información relevante proveniente de:
 - `README.md` raíz del monorepo
 - `CONVENTIONS.md`
 - `docs/EVENTOS.md`
-- `CASOS_USO/CU-04-Gestion-Tarjetas.md`
-- `CASOS_USO/CU-07-Consumos-Tarjetas.md`
+- `../docs/CASOS_USO`
+- `../docs/CASOS_USO`
 - `CASOS_PRUEBA/CASOS_PRUEBA_QA.md`
 - `cards-service/CASOS_PRUEBA/*.md`
 - `init-mongo-parte1.js`
@@ -995,14 +995,14 @@ Referirse también a:
 
 | Archivo | Descripción |
 |---------|-------------|
-| `../CASOS_USO/CU-04-Gestion-Tarjetas.md` | Caso de uso principal: gestión de tarjetas |
-| `../CASOS_USO/CU-07-Consumos-Tarjetas.md` | Caso de uso: consumos en tarjetas |
+| `../docs/CASOS_USO` | Caso de uso principal: gestión de tarjetas |
+| `../docs/CASOS_USO` | Caso de uso: consumos en tarjetas |
 | `../DIAGRAMAS_SECUENCIAS/SEC014_emision_tarjeta_credito_personal.md` | Diagrama emisión crédito personal |
 | `../DIAGRAMAS_SECUENCIAS/SEC016_emision_tarjeta_debito.md` | Diagrama emisión débito |
 | `../DIAGRAMAS_SECUENCIAS/SEC021_consumo_tarjeta_credito.md` | Diagrama consumo crédito |
 | `../DIAGRAMAS_SECUENCIAS/SEC025_topup_wallet_tripartito.md` | Diagrama top-up wallet |
-| `../CASOS_PRUEBA/RTM.md` | Matriz de trazabilidad completa |
-| `../CASOS_PRUEBA/TRACEABILIDAD_POR_SERVICIO.md` | Trazabilidad por microservicio |
+| `../docs/CASOS_PRUEBA` | Matriz de trazabilidad completa |
+| `../docs/CASOS_PRUEBA` | Trazabilidad por microservicio |
 | `../system-prompt-auditoria-hexagonal-yanki.md` | Estándar de arquitectura hexagonal |
 
 ---
@@ -1012,8 +1012,8 @@ Referirse también a:
 - `README.md` raíz del proyecto
 - `CONVENTIONS.md`
 - `docs/EVENTOS.md`
-- `CASOS_USO/CU-04-Gestion-Tarjetas.md`
-- `CASOS_USO/CU-07-Consumos-Tarjetas.md`
+- `../docs/CASOS_USO`
+- `../docs/CASOS_USO`
 - `CASOS_PRUEBA/CASOS_PRUEBA_QA.md`
 - `cards-service/CASOS_PRUEBA/README.md`
 - `cards-service/CASOS_PRUEBA/MOCKS.md`
