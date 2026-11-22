@@ -24,37 +24,37 @@ Gestiona la **emisión de tarjetas**, **consumos**, **pagos**, **top-up wallet**
 
 ---
 
-## ✅ Estado Actual de Desarrollo (Auditoría 2026-11-15)
+## ✅ Estado Actual de Desarrollo (Auditoría 2026-11-22)
 
 > **Estado:** 🟢 **Implementación completa de lógica de negocio** — 13 endpoints implementados con arquitectura hexagonal.
-> **Tests:** 116 pruebas pasando (65 unitarias + 51 de integración con mocks). BUILD SUCCESS.
-> **⚠️ Violaciones activas:** 17 operaciones de bloqueo reactivo (`.block()`/`.blockingGet()`) detectadas en `CardController` y adaptadores MongoDB — severidad ALTA.
+> **Tests:** 149 pruebas en 22 clases de test. BUILD SUCCESS.
+> **✅ Sin violaciones activas:** Cero operaciones de bloqueo reactivo — `CardController` usa `RxJava3Adapter` y los adaptadores MongoDB son completamente reactivos.
 
 | Componente | Estado | Detalle |
 |---|---|---|
 | **Modelo de dominio** | ✅ Completo | 8 entidades/enum puras, sin @Document, sin @Id, BigDecimal para montos |
-| **Puertos hexagonales** | ✅ Completo | 13 puertos de entrada (todos los use cases) + 6 puertos de salida (persistencia, cache, eventos) |
+| **Puertos hexagonales** | ✅ Completo | 15 puertos de entrada (todos los use cases) + 6 puertos de salida (persistencia, cache, eventos) |
 | **Capa infrastructure** | ✅ Completo | 5 documentos MongoDB, 5 repositorios Spring Data, 5 mappers, 5 adaptadores de puertos |
-| **Servicios de dominio** | ✅ Completo | 13 implementaciones de use case con RxJava 3 cubriendo toda la lógica de negocio |
+| **Servicios de dominio** | ✅ Completo | 14 implementaciones de use case con RxJava 3 cubriendo toda la lógica de negocio |
 | **Controladores REST** | ✅ Completo | `CardController` con 13 endpoints usando puertos de entrada |
-| **DTOs** | ✅ Completo | 10 DTOs (requests y responses) + 2 mappers REST |
-| **ErrorCode** | ✅ Completo | 25 códigos de error cubriendo todos los escenarios |
+| **DTOs** | ✅ Completo | 10 DTOs (requests y responses) + ApiError + 2 mappers REST |
+| **ErrorCode** | ✅ Completo | 27 códigos de error cubriendo todos los escenarios |
 | **GlobalExceptionHandler** | ✅ Completo | Implementado correctamente |
 | **Kafka producers** | ✅ Completo | `CardKafkaEventAdapter` publica 7 tipos de eventos (CardOpened, CardClosed, CardBlocked, CardUnblocked, ConsumptionRegistered, ConsumptionRefunded, PaymentRegistered) |
 | **Kafka consumers** | ✅ Completo | `CustomerProfileConsumer` (CustomerRegistered/Updated) + `AccountClosedConsumer` con idempotencia via `processed_events` |
 | **Redis cache** | ✅ Completo | `CardRedisCacheAdapter` con caché de tarjeta completa y límite disponible (TTL configurable) |
-| **Tests unitarios** | ✅ Completo | 65 pruebas JUnit 5 con Mockito cubriendo los 13 servicios de dominio |
-| **Tests de integración** | ✅ Con mocks | 51 pruebas con mocks: Controller (WebTestClient), adaptadores MongoDB, mappers, GlobalExceptionHandler |
+| **Tests unitarios** | ✅ Completo | 149 pruebas JUnit 5 con Mockito cubriendo 14 servicios de dominio, adaptadores, mappers, consumers, Controller y GlobalExceptionHandler |
+| **Tests de integración** | ✅ Con mocks | Controller (WebTestClient), adaptadores MongoDB, mappers, GlobalExceptionHandler, CustomerProfileConsumer |
 | **Docker** | ✅ Completo | `Dockerfile` presente |
 | **OpenAPI/Swagger** | ✅ Completo | springdoc 2.6.0, 13 endpoints documentados, spec YAML standalone |
 | **Postman** | ✅ Completo | Colección con 13 endpoints, tests automatizados |
 
-### Arquitectura Hexagonal — Estado de Auditoría (2026-11-15)
+### Arquitectura Hexagonal — Estado de Auditoría (2026-11-22)
 
 | Severidad | Hallazgo | Estado | Detalle |
 |---|---|---|---|
-| **ALTA** | `.block()`/`.blockingGet()` en CardController | ⚠️ Activo | 10 llamadas a `.blockingGet()` en `CardController.java` para convertir RxJava3 → Reactor |
-| **ALTA** | `.block()` en adaptadores MongoDB | ⚠️ Activo | 7 llamadas a `.block()` en `CardMongoAdapter`, `ConsumptionMongoAdapter`, `CustomerProfileViewMongoAdapter`, `CustomerRiskViewMongoAdapter`, `ProcessedEventMongoAdapter` |
+| ✅ Resuelto | `.block()`/`.blockingGet()` en CardController | ✅ | `CardController` usa `RxJava3Adapter.singleToMono`/`completableToMono` para convertir RxJava3 → Reactor |
+| ✅ Resuelto | `.block()` en adaptadores MongoDB | ✅ | Adaptadores MongoDB son completamente reactivos sin bloqueo |
 | ✅ Resuelto | `@Document` en dominio | ✅ | Entidades puras en `domain.model`; `*Document` en `infrastructure.persistence.document` |
 | ✅ Resuelto | `@Id` en dominio | ✅ | Identificadores sin anotaciones en dominio; `@Id` solo en documentos |
 | ✅ Resuelto | `ReactiveMongoRepository` en dominio | ✅ | Repositorios Spring Data en `infrastructure.persistence.repository` |
@@ -65,7 +65,7 @@ Gestiona la **emisión de tarjetas**, **consumos**, **pagos**, **top-up wallet**
 | ✅ Resuelto | Javadoc en español | ✅ | Javadoc en español en todos los archivos |
 | ✅ Resuelto | Idempotencia Kafka consumers | ✅ | `processed_events` con key `<topic>:<entityId>:<occurredAt>` |
 | ⚠️ Mejora | Checkstyle plugin ausente | ⚠️ | `pom.xml` sin plugin `maven-checkstyle-plugin` |
-| ⚠️ Mejora | JaCoCo excluye capas externas | ⚠️ | Solo analiza 26 clases de dominio; `infrastructure/**` e `interfaces/**` excluidas |
+| ⚠️ Mejora | JaCoCo excluye capas externas | ⚠️ | `infrastructure/**` e `interfaces/**` excluidas del reporte JaCoCo |
 
 ### Endpoints Implementados (13/13)
 
@@ -732,39 +732,49 @@ Aunque la colección `statements` no está formalmente listada en el esqueleto i
 
 ---
 
-## 15. Estructura de Paquetes Esperada
+## 15. Estructura de Paquetes Actual
 
 ```text
 src/main/java/com/yanki/cards
 ├── CardsServiceApplication.java
+├── config/
+│   └── OpenAPIConfig.java
 ├── domain
-│   ├── model
-│   ├── repository
-│   ├── service
-│   ├── event
-│   └── exception
+│   ├── model/              # 8 entidades/enum puras (Card, Consumption, CustomerProfileView, CustomerRiskView, ProcessedEvent, CardType, CardSubtype, CardStatus, ConsumptionStatus, CustomerProfile, CustomerType)
+│   ├── port/
+│   │   ├── in/             # 15 puertos de entrada (UseCase interfaces)
+│   │   └── out/            # 6 puertos de salida (persistence, cache, event publisher)
+│   ├── service/            # 14 implementaciones de use case con RxJava 3
+│   ├── event/              # 11 domain events + Topics.java
+│   └── exception/          # BusinessException, ErrorCode (27 códigos)
 ├── infrastructure
-│   ├── config
-│   ├── persistence
-│   └── messaging
-└── interfaces
-    └── rest
-        ├── controller
-        ├── dto
-        └── GlobalExceptionHandler.java
+│   ├── config/             # CacheProperties, KafkaConsumerConfig
+│   ├── persistence/
+│   │   ├── document/       # 5 @Document classes
+│   │   ├── repository/     # 5 SpringData*Repository interfaces
+│   │   ├── mapper/         # 5 Document ↔ Domain mappers
+│   │   └── adapter/        # 5 adaptadores de puertos de persistencia
+│   ├── cache/adapter/      # CardRedisCacheAdapter
+│   └── messaging/
+│       ├── adapter/        # CardKafkaEventAdapter (7 tipos de evento)
+│       └── consumer/       # CustomerProfileConsumer, AccountClosedConsumer
+└── interfaces/rest/
+    ├── controller/         # CardController (13 endpoints)
+    ├── dto/                # 13 DTOs (requests y responses)
+    ├── mapper/             # CardRestMapper, ConsumptionRestMapper
+    └── GlobalExceptionHandler.java
 ```
 
-### Componentes mínimos esperados
-- `CardController`
-- `CardService`
-- `ConsumptionService`
-- `PaymentService`
-- `TopupService`
-- `CardEventPublisher`
-- `CardEventConsumer`
-- `GlobalExceptionHandler`
-- `ErrorCode`
-- `BusinessException`
+### Componentes implementados
+- `CardController` — 13 endpoints REST reactivos
+- 14 servicios de dominio — IssueCard, FindCards, GetCard, GetCardLimit, GetConsumptions, GetConsumptionDetail, RegisterConsumption, RefundConsumption, GetStatement, RegisterPayment, BlockCard, UnblockCard, CloseCard, UpdateCustomerProfile, HandleAccountClosed
+- `CardKafkaEventAdapter` — Publicador de 7 tipos de eventos Kafka
+- `CustomerProfileConsumer` — Consumidor de CustomerRegistered/Updated/Deleted
+- `AccountClosedConsumer` — Consumidor de AccountClosed
+- `CardRedisCacheAdapter` — Cache de tarjeta y límite con TTL configurable
+- `GlobalExceptionHandler` — Manejo unificado de errores
+- `ErrorCode` — 27 códigos de error
+- `BusinessException` — Excepción de negocio
 
 ---
 
@@ -900,8 +910,8 @@ curl http://localhost:8085/actuator/health
 ```
 
 ### OpenAPI / Swagger
-- `http://localhost:8083/swagger-ui.html` — Interfaz interactiva de prueba de endpoints
-- `http://localhost:8083/v3/api-docs` — Especificación OpenAPI 3.0 en JSON
+- `http://localhost:8085/swagger-ui.html` — Interfaz interactiva de prueba de endpoints
+- `http://localhost:8085/v3/api-docs` — Especificación OpenAPI 3.0 en JSON
 - [`API/cards-service.openapi.yml`](API/cards-service.openapi.yml) — Especificación OpenAPI 3.2.1 completa en YAML con los 13 endpoints, 10 schemas, ejemplos de respuestas y errores
 
 ### Colección Postman

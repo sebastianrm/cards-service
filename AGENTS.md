@@ -20,7 +20,7 @@
 - **Mensajería:** Apache Kafka
 - **Stack:** Java 17, Spring Boot 3.3.5, Spring WebFlux, RxJava 3, Reactive MongoDB, Reactive Redis, Spring Kafka
 
-**Estado actual:** 🟢 Implementación completa de lógica de negocio, Kafka, Redis y pruebas (auditoría 2026-11-15). Los 13 endpoints implementados con arquitectura hexagonal. Kafka producers y consumers con idempotencia. Redis cache con patrón cache-aside. 116 pruebas pasando (65 unitarias + 51 de integración con mocks). **⚠️ 17 violaciones de bloqueo reactivo** (`.block()`/`.blockingGet()`) detectadas en `CardController` y adaptadores MongoDB — severidad ALTA. Ver [`README.md`](./README.md) para el reporte completo de auditoría.
+**Estado actual:** 🟢 Implementación completa de lógica de negocio, Kafka, Redis y pruebas (auditoría 2026-11-22). Los 13 endpoints implementados con arquitectura hexagonal. Kafka producers y consumers con idempotencia. Redis cache con patrón cache-aside. **149 pruebas** en 22 clases de test. **✅ Cero violaciones de bloqueo reactivo** — `CardController` usa `RxJava3Adapter` y los adaptadores MongoDB son completamente reactivos. Ver [`README.md`](./README.md) para el reporte completo de auditoría.
 
 ---
 
@@ -76,23 +76,23 @@ $env:YANKI_CARD_PYME_LIMIT_MULTIPLIER=3.0
 
 Consult [`../system-prompt-auditoria-hexagonal-yanki.md`](../system-prompt-auditoria-hexagonal-yanki.md) for the full protocol. Before generating or modifying code, **always read that file**.
 
-**Audit status (2026-11-15):**
+**Audit status (2026-11-22):**
 
 | Severity | Violation | Status | Resolution |
 |---|---|---|---|
-| **HIGH** | `.block()`/`.blockingGet()` in CardController | ⚠️ Active | 10 calls converting RxJava3 → Reactor; must use `RxJava3Adapter` instead |
-| **HIGH** | `.block()` in MongoDB adapters | ⚠️ Active | 7 calls in `CardMongoAdapter`, `ConsumptionMongoAdapter`, `CustomerProfileViewMongoAdapter`, `CustomerRiskViewMongoAdapter`, `ProcessedEventMongoAdapter` |
+| **HIGH** | `.block()`/`.blockingGet()` in CardController | ✅ Resolved | `CardController` usa `RxJava3Adapter.singleToMono`/`completableToMono` para convertir RxJava3 → Reactor |
+| **HIGH** | `.block()` in MongoDB adapters | ✅ Resolved | Adaptadores MongoDB son completamente reactivos sin bloqueo |
 | **HIGH** | `@Document`, `@Id` in `domain.model` | ✅ Resolved | Moved to `infrastructure.persistence.document.*Document` |
 | **HIGH** | `ReactiveMongoRepository` in `domain.repository` | ✅ Resolved | Moved to `infrastructure.persistence.repository.SpringData*Repository` |
 | **HIGH** | `Mono`/`Flux` (Reactor) in `domain.service` | ✅ Resolved | Services use RxJava 3 (`Single`, `Maybe`, `Flowable`) |
-| **HIGH** | Missing `domain.port.in` and `domain.port.out` | ✅ Resolved | 13 input ports + 6 output ports (persistence, cache, event publisher) |
+| **HIGH** | Missing `domain.port.in` and `domain.port.out` | ✅ Resolved | 15 input ports + 6 output ports (persistence, cache, event publisher) |
 | **HIGH** | Missing `infrastructure/` layer | ✅ Resolved | Full layer: document, repository, mapper, adapter, cache, messaging |
 | **MEDIUM** | `double` for monetary amounts | ✅ Resolved | `BigDecimal` in `Card` and `Consumption` |
 | **MEDIUM** | Wildcard imports | ✅ Resolved | Explicit imports in all files |
 | **MEDIUM** | Javadoc in English | ✅ Resolved | Spanish Javadoc in all new files |
 | **MEDIUM** | Controller injects service directly | ✅ Resolved | Controller invokes `domain.port.in.*` |
 | **MEDIUM** | Checkstyle plugin missing | ⚠️ Active | `pom.xml` lacks `maven-checkstyle-plugin` |
-| **MEDIUM** | JaCoCo excludes infrastructure | ⚠️ Active | Only 26 domain classes analyzed; `infrastructure/**` and `interfaces/**` excluded |
+| **MEDIUM** | JaCoCo excludes infrastructure | ⚠️ Active | `infrastructure/**` and `interfaces/**` excluded from JaCoCo report |
 
 **Current package structure (verified):**
 
@@ -101,9 +101,9 @@ com.yanki.cards
 ├── domain
 │   ├── model/                 # Pure entities — NO @Document, NO @Id
 │   ├── port
-│   │   ├── in/                # Use case interfaces (RxJava 3: Single, Maybe, Completable, Flowable)
-│   │   └── out/               # Persistence, cache, event publisher ports (RxJava 3)
-│   ├── service/               # Use case implementations — depend ONLY on ports
+│   │   ├── in/                # 15 use case interfaces (RxJava 3: Single, Maybe, Completable, Flowable)
+│   │   └── out/               # 6 ports — persistence, cache, event publisher (RxJava 3)
+│   ├── service/               # 14 use case implementations — depend ONLY on ports
 │   ├── event/                 # Domain event payloads (Java records)
 │   └── exception/             # BusinessException, ErrorCode
 ├── infrastructure
@@ -136,20 +136,21 @@ com.yanki.cards
 
 ## Testing Strategy
 
-- **Unit:** ✅ 65 pruebas implementadas — Domain services with mocked `domain.port.out.*` + RxJava3 `TestObserver`
-  - 13 test classes covering all 13 domain services
-  - Happy path + error scenarios for each use case
+- **Unit:** ✅ 149 pruebas en 22 clases — Domain services, infrastructure adapters, mappers, consumers, Controller, GlobalExceptionHandler
+  - 14 test classes de domain services con mocks de `domain.port.out.*` + RxJava3 `TestObserver`
+  - 2 test classes de Controller REST (`CardControllerUnitTest`, `CardControllerIntegrationTest` con `WebTestClient` + mocks)
+  - 2 test classes de adaptadores MongoDB (`CardMongoAdapterTest`, `ConsumptionMongoAdapterTest` con mocks de repositorios)
+  - 2 test classes de mappers (`CardDocumentMapperTest`, `ConsumptionDocumentMapperTest` — round-trip, null handling, enum conversion)
+  - 1 test class de `GlobalExceptionHandler` (BusinessException, IllegalArgumentException, IllegalStateException, unexpected)
+  - 1 test class de `CustomerProfileConsumer` (idempotencia, CustomerRegistered, CustomerUpdated, CustomerDeleted)
   - Key business rules tested:
     - Credit card issuance with overdue debt blocking
     - Debit card account validation
     - Consumption credit limit validation
     - Refund eligibility (only AUTHORIZED status)
     - Card state transitions (block/unblock/close)
-- **Integration:** ✅ 51 pruebas implementadas con mocks — Controller, adaptadores MongoDB, mappers, GlobalExceptionHandler
-  - 17 pruebas de Controller REST (`WebTestClient` + mocks de `domain.port.in.*`)
-  - 14 pruebas de adaptadores MongoDB (`CardMongoAdapter`, `ConsumptionMongoAdapter` con mocks de `SpringData*Repository`)
-  - 14 pruebas de mappers (`CardDocumentMapper`, `ConsumptionDocumentMapper` — round-trip, null handling, enum conversion)
-  - 6 pruebas de `GlobalExceptionHandler` (BusinessException, IllegalArgumentException, IllegalStateException, unexpected)
+    - Customer profile update (register, update, delete)
+    - Account closed handling
 - **Event:** ✅ Implementado — Kafka producers y consumers con idempotencia
   - `CardKafkaEventAdapter` publica 7 tipos de evento (CardOpened, CardClosed, CardBlocked, CardUnblocked, ConsumptionRegistered, ConsumptionRefunded, PaymentRegistered)
   - `CustomerProfileConsumer` consume CustomerRegistered/Updated con idempotencia via `processed_events`
