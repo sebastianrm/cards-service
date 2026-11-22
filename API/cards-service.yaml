@@ -1,0 +1,958 @@
+openapi: 3.0.3
+info:
+  title: Yanki Cards Service API
+  description: |
+    API REST de gestión de tarjetas de crédito y débito de la plataforma bancaria Yanki.
+    
+    Gestiona el ciclo completo de tarjetas: emisión, bloqueo/desbloqueo, cierre,
+    consumos, reembolsos, pagos y estados de cuenta.
+    
+    **Características principales:**
+    - Emisión de tarjetas CREDIT y DEBIT (PERSONAL, CORPORATE, VIRTUAL, FÍSICA)
+    - Bloqueo y desbloqueo de tarjetas
+    - Registro de consumos con validación de límite
+    - Reembolsos (refunds) de consumos
+    - Pagos de tarjetas de crédito
+    - Estados de cuenta mensuales
+    - Consulta de límite disponible
+  version: 1.0.0
+  contact:
+    name: Sebastian Retamal Morales
+    email: retamal.sebastian@gmail.com
+  license:
+    name: Proprietary
+    url: https://yanki.com/license
+
+servers:
+  - url: http://localhost:8085
+    description: Entorno local de desarrollo
+  - url: https://api-gateway.yanki.com/api/cards
+    description: Entorno de producción (vía API Gateway)
+
+tags:
+  - name: Cards
+    description: Gestión de tarjetas de crédito y débito
+  - name: Consumptions
+    description: Registro y consulta de consumos de tarjetas
+  - name: Payments
+    description: Pagos y reembolsos de tarjetas de crédito
+
+paths:
+  /api/cards:
+    get:
+      tags: [Cards]
+      summary: Lista todas las tarjetas
+      description: Devuelve la colección completa de tarjetas registradas en el sistema
+      operationId: getAllCards
+      responses:
+        '200':
+          description: Lista de tarjetas obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CardResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    post:
+      tags: [Cards]
+      summary: Emite una nueva tarjeta
+      description: |
+        Crea una nueva tarjeta de crédito o débito para el cliente especificado.
+        Para tarjetas de crédito: valida que el cliente no tenga deuda vencida.
+        Para tarjetas de débito: se requiere una cuenta bancaria vinculada.
+      operationId: issueCard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCardRequest'
+            example:
+              customerId: "cust-456"
+              type: "CREDIT"
+              subtype: "PERSONAL"
+              creditLimit: 10000.00
+      responses:
+        '201':
+          description: Tarjeta emitida exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: El cliente tiene deuda vencida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: El cliente no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Ya existe una tarjeta de este tipo para el cliente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/cards/{id}:
+    get:
+      tags: [Cards]
+      summary: Obtiene el detalle de una tarjeta
+      description: Devuelve toda la información de una tarjeta específica por su identificador
+      operationId: getCard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta
+          schema:
+            type: string
+            example: "card-123"
+      responses:
+        '200':
+          description: Detalle de la tarjeta obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '404':
+          description: La tarjeta no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    delete:
+      tags: [Cards]
+      summary: Cierra una tarjeta
+      description: |
+        Cierra permanentemente una tarjeta. Para tarjetas de crédito, se valida que no haya saldo pendiente.
+        Una vez cerrada, la tarjeta no puede ser reactivada.
+      operationId: closeCard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta
+          schema:
+            type: string
+            example: "card-123"
+      responses:
+        '204':
+          description: Tarjeta cerrada exitosamente
+        '403':
+          description: La tarjeta no está activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: La tarjeta no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: La tarjeta ya está cerrada o tiene saldo pendiente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/cards/{id}/limit:
+    get:
+      tags: [Cards]
+      summary: Consulta el límite disponible
+      description: Devuelve el límite de crédito total, consumos autorizados y límite disponible. Solo para tarjetas de crédito
+      operationId: getCardLimit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta de crédito
+          schema:
+            type: string
+            example: "card-123"
+      responses:
+        '200':
+          description: Límite obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LimitResponse'
+        '404':
+          description: La tarjeta no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: La consulta de límite no aplica para este tipo de tarjeta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/cards/{id}/block:
+    put:
+      tags: [Cards]
+      summary: Bloquea una tarjeta
+      description: Bloquea una tarjeta activa impidiendo su uso para nuevas transacciones
+      operationId: blockCard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta
+          schema:
+            type: string
+            example: "card-123"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockCardRequest'
+            example:
+              reason: "Tarjeta reportada como perdida"
+      responses:
+        '200':
+          description: Tarjeta bloqueada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '403':
+          description: La tarjeta no está activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: La tarjeta no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: La tarjeta ya está bloqueada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/cards/{id}/unblock:
+    put:
+      tags: [Cards]
+      summary: Desbloquea una tarjeta
+      description: Restaura el estado ACTIVE de una tarjeta previamente bloqueada
+      operationId: unblockCard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta
+          schema:
+            type: string
+            example: "card-123"
+      responses:
+        '200':
+          description: Tarjeta desbloqueada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '404':
+          description: La tarjeta no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: La tarjeta no está bloqueada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/cards/{id}/consumptions:
+    get:
+      tags: [Consumptions]
+      summary: Lista los consumos de una tarjeta
+      description: Devuelve la colección completa de consumos registrados para una tarjeta
+      operationId: getConsumptions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta
+          schema:
+            type: string
+            example: "card-123"
+      responses:
+        '200':
+          description: Lista de consumos obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConsumptionResponse'
+        '404':
+          description: La tarjeta no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    post:
+      tags: [Consumptions]
+      summary: Registra un consumo
+      description: |
+        Registra un nuevo consumo en la tarjeta. Para tarjetas de crédito, valida el límite disponible.
+        Para tarjetas de débito, inicia el flujo asíncrono de pago desde la cuenta vinculada.
+      operationId: registerConsumption
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta
+          schema:
+            type: string
+            example: "card-123"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConsumptionRequest'
+            example:
+              amount: 150.50
+              merchantId: "merchant-001"
+              description: "Compra en supermercado"
+      responses:
+        '201':
+          description: Consumo registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsumptionResponse'
+        '400':
+          description: Monto inválido o límite insuficiente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: La tarjeta está bloqueada o no está activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: La tarjeta no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/cards/{id}/consumptions/{consumptionId}:
+    get:
+      tags: [Consumptions]
+      summary: Obtiene el detalle de un consumo
+      description: Devuelve la información completa de un consumo específico
+      operationId: getConsumptionDetail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta
+          schema:
+            type: string
+            example: "card-123"
+        - name: consumptionId
+          in: path
+          required: true
+          description: Identificador único del consumo
+          schema:
+            type: string
+            example: "cons-456"
+      responses:
+        '200':
+          description: Detalle del consumo obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsumptionResponse'
+        '404':
+          description: El consumo o la tarjeta no existen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/cards/{id}/consumptions/{consumptionId}/refund:
+    post:
+      tags: [Consumptions]
+      summary: Procesa el reverso de un consumo
+      description: Procesa el reembolso de un consumo previamente autorizado o liquidado
+      operationId: refundConsumption
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta
+          schema:
+            type: string
+            example: "card-123"
+        - name: consumptionId
+          in: path
+          required: true
+          description: Identificador único del consumo a reembolsar
+          schema:
+            type: string
+            example: "cons-456"
+      responses:
+        '200':
+          description: Reembolso procesado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsumptionResponse'
+        '404':
+          description: El consumo o la tarjeta no existen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: El consumo ya fue reembolsado o no es reembolsable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/cards/{id}/statement:
+    get:
+      tags: [Consumptions]
+      summary: Estado de cuenta mensual
+      description: Devuelve el estado de cuenta mensual con consumos, monto total y límite disponible
+      operationId: getStatement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta
+          schema:
+            type: string
+            example: "card-123"
+        - name: month
+          in: query
+          required: false
+          description: Mes del estado de cuenta en formato YYYY-MM. Si no se especifica, se usa el mes actual
+          schema:
+            type: string
+            example: "2026-11"
+      responses:
+        '200':
+          description: Estado de cuenta obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementResponse'
+        '404':
+          description: La tarjeta no existe o no se encontró estado de cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/cards/{id}/payments:
+    post:
+      tags: [Payments]
+      summary: Registra un pago de tarjeta de crédito
+      description: Registra un pago reduciendo el saldo pendiente y aumentando el límite disponible
+      operationId: registerPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la tarjeta
+          schema:
+            type: string
+            example: "card-123"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+            example:
+              amount: 500.00
+              sourceAccountId: "acc-789"
+      responses:
+        '201':
+          description: Pago registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          description: Monto inválido o pago rechazado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: La tarjeta no está activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: La tarjeta no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+components:
+  schemas:
+    CreateCardRequest:
+      type: object
+      required: [customerId, type]
+      description: Solicitud para emitir una nueva tarjeta de crédito o débito
+      properties:
+        customerId:
+          type: string
+          description: Identificador único del cliente propietario de la tarjeta
+          example: "cust-456"
+        type:
+          type: string
+          description: |
+            Tipo de tarjeta a emitir.
+            - CREDIT: tarjeta de crédito
+            - DEBIT: tarjeta de débito (requiere linkedAccountId)
+          enum: [CREDIT, DEBIT]
+          example: "CREDIT"
+        subtype:
+          type: string
+          description: |
+            Subtipo de tarjeta.
+            - PERSONAL: tarjeta personal
+            - CORPORATE: tarjeta corporativa
+            - VIRTUAL: tarjeta virtual
+            - FISICA: tarjeta física
+          enum: [PERSONAL, CORPORATE, VIRTUAL, FISICA]
+          example: "PERSONAL"
+          nullable: true
+        creditLimit:
+          type: number
+          format: decimal
+          description: Límite de crédito inicial (obligatorio para CREDIT, ignorado para DEBIT)
+          example: 10000.00
+          nullable: true
+        linkedAccountId:
+          type: string
+          description: Identificador de la cuenta bancaria vinculada (obligatorio para DEBIT)
+          example: "acc-789"
+          nullable: true
+
+    CardResponse:
+      type: object
+      description: Datos completos de una tarjeta de crédito o débito
+      properties:
+        id:
+          type: string
+          description: Identificador único de la tarjeta
+          example: "card-123"
+        customerId:
+          type: string
+          description: Identificador del cliente propietario
+          example: "cust-456"
+        type:
+          type: string
+          description: Tipo de tarjeta
+          enum: [CREDIT, DEBIT]
+          example: "CREDIT"
+        subtype:
+          type: string
+          description: Subtipo de tarjeta
+          enum: [PERSONAL, CORPORATE, VIRTUAL, FISICA]
+          example: "PERSONAL"
+        status:
+          type: string
+          description: |
+            Estado actual de la tarjeta.
+            - ACTIVE: tarjeta activa y operativa
+            - BLOCKED: tarjeta bloqueada temporalmente
+            - CLOSED: tarjeta cerrada permanentemente
+            - EXPIRED: tarjeta vencida
+          enum: [ACTIVE, BLOCKED, CLOSED, EXPIRED]
+          example: "ACTIVE"
+        cardNumber:
+          type: string
+          description: Número de tarjeta enmascarado (solo últimos 4 dígitos visibles)
+          example: "****1234"
+        expiryDate:
+          type: string
+          format: date-time
+          description: Fecha de vencimiento de la tarjeta (ISO 8601)
+          example: "2028-12-31T23:59:59"
+        creditLimit:
+          type: number
+          format: decimal
+          description: Límite de crédito total (solo para tarjetas de crédito)
+          example: 10000.00
+          nullable: true
+        availableLimit:
+          type: number
+          format: decimal
+          description: Límite disponible actual (crédito total menos consumos autorizados)
+          example: 8500.00
+        linkedAccountId:
+          type: string
+          description: Identificador de la cuenta bancaria vinculada (obligatorio para DEBIT)
+          example: "acc-789"
+          nullable: true
+        issuedAt:
+          type: string
+          format: date-time
+          description: Fecha de emisión de la tarjeta (ISO 8601)
+          example: "2026-01-15T10:00:00"
+        activatedAt:
+          type: string
+          format: date-time
+          description: Fecha de activación de la tarjeta (ISO 8601)
+          example: "2026-01-16T08:00:00"
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Fecha de creación del registro (ISO 8601)
+          example: "2026-01-15T10:00:00"
+
+    CreateConsumptionRequest:
+      type: object
+      required: [amount, merchantId]
+      description: Solicitud para registrar un nuevo consumo en una tarjeta
+      properties:
+        amount:
+          type: number
+          format: decimal
+          description: Monto del consumo (debe ser mayor a cero)
+          example: 150.50
+          minimum: 0.01
+        merchantId:
+          type: string
+          description: Identificador del comercio donde se realiza el consumo
+          example: "merchant-001"
+        description:
+          type: string
+          description: Descripción opcional del consumo
+          example: "Compra en supermercado"
+          nullable: true
+
+    ConsumptionResponse:
+      type: object
+      description: Datos de un consumo registrado en una tarjeta
+      properties:
+        id:
+          type: string
+          description: Identificador único del consumo
+          example: "cons-123"
+        cardId:
+          type: string
+          description: Identificador de la tarjeta donde se registró el consumo
+          example: "card-456"
+        customerId:
+          type: string
+          description: Identificador del cliente propietario de la tarjeta
+          example: "cust-789"
+        amount:
+          type: number
+          format: decimal
+          description: Monto del consumo en moneda local
+          example: 150.50
+        merchantId:
+          type: string
+          description: Identificador del comercio donde se realizó el consumo
+          example: "merchant-001"
+        description:
+          type: string
+          description: Descripción del consumo o concepto de la transacción
+          example: "Compra en supermercado"
+          nullable: true
+        status:
+          type: string
+          description: |
+            Estado del consumo.
+            - AUTHORIZED: consumo autorizado pero no liquidado
+            - SETTLED: consumo liquidado
+            - REFUNDED: consumo reembolsado
+            - REJECTED: consumo rechazado
+          enum: [AUTHORIZED, SETTLED, REFUNDED, REJECTED]
+          example: "AUTHORIZED"
+        paymentId:
+          type: string
+          description: Identificador del pago asociado (para consumos de débito con pago asíncrono)
+          example: "pay-001"
+          nullable: true
+        occurredAt:
+          type: string
+          format: date-time
+          description: Fecha y hora en que ocurrió el consumo (ISO 8601)
+          example: "2026-11-14T12:00:00"
+        settledAt:
+          type: string
+          format: date-time
+          description: Fecha y hora de liquidación del consumo (ISO 8601)
+          example: "2026-11-15T00:00:00"
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Fecha de creación del registro (ISO 8601)
+          example: "2026-11-14T12:00:00"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Fecha de última actualización (ISO 8601)
+          example: "2026-11-15T00:00:00"
+
+    BlockCardRequest:
+      type: object
+      description: Solicitud para bloquear una tarjeta activa con un motivo opcional
+      properties:
+        reason:
+          type: string
+          description: Motivo del bloqueo de la tarjeta (opcional)
+          example: "Tarjeta reportada como perdida"
+          nullable: true
+
+    LimitResponse:
+      type: object
+      description: Respuesta con el detalle del límite de crédito de una tarjeta
+      properties:
+        cardId:
+          type: string
+          description: Identificador de la tarjeta
+          example: "card-123"
+        creditLimit:
+          type: number
+          format: decimal
+          description: Límite de crédito total asignado a la tarjeta
+          example: 10000.00
+        availableLimit:
+          type: number
+          format: decimal
+          description: Límite disponible actual (crédito total menos consumos autorizados)
+          example: 8500.00
+        consumedAmount:
+          type: number
+          format: decimal
+          description: Monto total consumos autorizados pendientes de pago
+          example: 1500.00
+
+    CreatePaymentRequest:
+      type: object
+      required: [amount]
+      description: Solicitud para registrar un pago en una tarjeta de crédito
+      properties:
+        amount:
+          type: number
+          format: decimal
+          description: Monto del pago a aplicar a la tarjeta (debe ser mayor a cero)
+          example: 500.00
+          minimum: 0.01
+        sourceAccountId:
+          type: string
+          description: Identificador de la cuenta bancaria origen del pago (opcional)
+          example: "acc-789"
+          nullable: true
+
+    PaymentResponse:
+      type: object
+      description: Respuesta confirmatoria de un pago registrado en una tarjeta de crédito
+      properties:
+        cardId:
+          type: string
+          description: Identificador de la tarjeta donde se aplicó el pago
+          example: "card-123"
+        amount:
+          type: number
+          format: decimal
+          description: Monto del pago aplicado
+          example: 500.00
+        newAvailableLimit:
+          type: number
+          format: decimal
+          description: Nuevo límite disponible después de aplicar el pago
+          example: 9000.00
+        paidAt:
+          type: string
+          format: date-time
+          description: Fecha y hora del pago (ISO 8601)
+          example: "2026-11-14T15:30:00"
+
+    StatementResponse:
+      type: object
+      description: Estado de cuenta mensual con el resumen de consumos y saldos
+      properties:
+        cardId:
+          type: string
+          description: Identificador de la tarjeta
+          example: "card-123"
+        month:
+          type: string
+          format: date
+          description: Mes del estado de cuenta (YYYY-MM)
+          example: "2026-11-01"
+          nullable: true
+        consumptions:
+          type: array
+          description: Lista de consumos registrados en el periodo
+          items:
+            $ref: '#/components/schemas/ConsumptionResponse'
+        totalAmount:
+          type: number
+          format: decimal
+          description: Monto total de consumos en el periodo
+          example: 1500.00
+        availableLimit:
+          type: number
+          format: decimal
+          description: Límite disponible actual al cierre del periodo
+          example: 8500.00
+
+    ApiError:
+      type: object
+      description: Cuerpo estándar de error de la API Yanki
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Momento exacto en que se generó el error (ISO 8601)
+          example: "2024-01-15T10:30:00Z"
+        status:
+          type: integer
+          format: int32
+          description: Código de estado HTTP
+          example: 400
+        error:
+          type: string
+          description: Descripción textual del error HTTP
+          example: "Bad Request"
+        code:
+          type: string
+          description: Código de negocio específico del error
+          example: "INVALID_AMOUNT"
+        message:
+          type: string
+          description: Descripción legible del error en español
+          example: "El monto debe ser mayor a cero"
+        path:
+          type: string
+          description: Ruta de la API que originó el error
+          example: "/api/cards"
+        details:
+          type: object
+          description: Detalle adicional del error
+          additionalProperties: true
+          nullable: true
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtenido mediante el endpoint /api/auth/login del auth-service
+
+security:
+  - BearerAuth: []

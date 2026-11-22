@@ -1020,3 +1020,4 @@ Referirse también a:
 - `cards-service/CASOS_PRUEBA/CP-001-emision-tarjeta-credito-personal-exitosa.md`
 - `cards-service/CASOS_PRUEBA/CP-002-emision-tarjeta-debito-exitosa.md`
 - `cards-service/CASOS_PRUEBA/CP-003-emision-tarjeta-credito-rechazada-por-deuda-vencida.md`
+- `api/cards-service.yaml` — Contrato OpenAPI 3.0 completo con schemas, endpoints y errores
